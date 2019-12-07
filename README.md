@@ -1,5 +1,5 @@
 # jpush
-极光推送服务 Golang SDK
+Jiguang Push Service Golang SDK
 
 Production ready, full golang implementation of jiguang Push API (https://docs.jiguang.cn/jpush/server/push/rest_api_v3_report/)
 
