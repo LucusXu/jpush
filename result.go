@@ -7,19 +7,26 @@ type CidResult struct {
 
 // 推送返回结果
 type PushResult struct {
-	SendNo      string `json:"sendno"`
+	SendNo  string `json:"sendno"`
 	MsgId   string `json:"msg_id"`
+	Error   Error  `json:"error"`
+}
+
+// 推送返回错误
+type Error struct {
+	Code 	int 	`json:"code"`
+	Message string	`json:"message"`
 }
 
 // 推送返回结果
 type StatsResult struct {
-	AndroidPnsSent 	int `json:"android_pns_sent"`			// Android厂商用户推送到厂商服务器成功数
-	IosApnsReceived int `json:"ios_apns_received"`			// iOS 通知送达到设备
-	IosApnsSent 	int `json:"ios_apns_sent"`				// 通知推送到 APNs 成功
-	IosMsgReceived 	int `json:"ios_msg_received"`			// iOS 自定义消息送达数
-	JpushReceived 	int `json:"jpush_received"`				// 极光通道用户送达数
-	MsgId 			string `json:"msg_id"`					// 消息id
-	WpMpnsSent 		int `json:"wp_mpns_sent"`				// winphone通知送达
+	AndroidPnsSent 	int 	`json:"android_pns_sent"`			// Android厂商用户推送到厂商服务器成功数
+	IosApnsReceived int 	`json:"ios_apns_received"`			// iOS 通知送达到设备
+	IosApnsSent 	int 	`json:"ios_apns_sent"`				// 通知推送到 APNs 成功
+	IosMsgReceived 	int 	`json:"ios_msg_received"`			// iOS 自定义消息送达数
+	JpushReceived 	int 	`json:"jpush_received"`				// 极光通道用户送达数
+	MsgId 			string	`json:"msg_id"`						// 消息id
+	WpMpnsSent 		int		`json:"wp_mpns_sent"`				// winphone通知送达
 }
 
 // 推送返回结果
@@ -30,7 +37,6 @@ type MessageResult struct {
 	MsgId 		string 			`json:"msg_id"`				// 消息id
 	Winphone 	WinphoneStats 	`json:"winphone"`			// Winphone 统计数据
 }
-
 
 type AndroidPns struct {
 	PnsSent		int				`json:"pns_sent"`
@@ -44,29 +50,29 @@ type AndroidPns struct {
 }
 
 type AndroidStats struct {
-	Sent 	int `json:"sent"`								// 推送成功数
-	Target 	int `json:"target"`								// 推送目标数
+	Sent 	int `json:"sent"`			// 推送成功数
+	Target 	int `json:"target"`			// 推送目标数
 }
 
 type IosStats struct {
-	ApnsClick		int `json:"apns_click"`					// 通知点击数
-	ApnsReceived	int	`json:"apns_received"`				// APNs 服务器下发到设备成功
-	ApnsSent		int	`json:"apns_sent"`					// APNs 通知成功推送数
-	ApnsTarget		int	`json:"apns_target"`				// APNs 通知推送目标数
-	MsgReceived		int	`json:"msg_received"`				// 自定义消息送达数
-	MsgTarget		int	`json:"msg_target"`					// 自定义消息目标数
+	ApnsClick		int `json:"apns_click"`				// 通知点击数
+	ApnsReceived	int	`json:"apns_received"`			// APNs 服务器下发到设备成功
+	ApnsSent		int	`json:"apns_sent"`				// APNs 通知成功推送数
+	ApnsTarget		int	`json:"apns_target"`			// APNs 通知推送目标数
+	MsgReceived		int	`json:"msg_received"`			// 自定义消息送达数
+	MsgTarget		int	`json:"msg_target"`				// 自定义消息目标数
 }
 
 type WinphoneStats struct {
-	Click		int `json:"click"`							// MPNs 通知用户点击数
-	MpnsSent	int	`json:"mpns_sent"`						// MPNS 通知成功推送数
-	MpnsTarget	int	`json:"mpns_target"`					// MPNs 通知推送目标数
+	Click		int `json:"click"`					// MPNs 通知用户点击数
+	MpnsSent	int	`json:"mpns_sent"`				// MPNS 通知成功推送数
+	MpnsTarget	int	`json:"mpns_target"`			// MPNs 通知推送目标数
 }
 
 type JpushStats struct {
-	Click		int `json:"click"`							// 用户点击数
-	MsgClick	int	`json:"msg_click"`						// 自定义消息点击数
-	OnlinePush	int	`json:"online_push"`					// 在线推送数
-	Received	int	`json:"received"`						// 推送送达数
-	Target		int	`json:"target"`							// 推送目标数
+	Click		int `json:"click"`				// 用户点击数
+	MsgClick	int	`json:"msg_click"`			// 自定义消息点击数
+	OnlinePush	int	`json:"online_push"`		// 在线推送数
+	Received	int	`json:"received"`			// 推送送达数
+	Target		int	`json:"target"`				// 推送目标数
 }

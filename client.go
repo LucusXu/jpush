@@ -33,14 +33,13 @@ func (ji *JiPush) Push(ctx context.Context, payload *Payload) (*PushResult, erro
 	pushUrl := ji.pushHost + RegURL
 	resBytes, err := ji.doPost(ctx, pushUrl, payload)
 
-	if err != nil {
-		fmt.Println(" err:", err.Error())
-		return nil, err
-	}
 	var result PushResult
-	err = json.Unmarshal(resBytes, &result)
+	errJson := json.Unmarshal(resBytes, &result)
+	if errJson != nil {
+		return nil, errJson
+	}
 	if err != nil {
-		return nil, err
+		return &result, err
 	}
 	return &result, nil
 }
@@ -71,7 +70,7 @@ func (jc *JiPush) PushRigsList(ctx context.Context, platform, cid string, rigs [
 
 	// tokens
 	payload.SetRegistrationId(rigs)
-	var ttl, _= strconv.Atoi(notice["ttl"])
+	var ttl, _ = strconv.Atoi(notice["ttl"])
 	if ttl > 0 {
 		// 最大存活时间s
 		payload.SetTimeToLive(ttl)
@@ -86,6 +85,9 @@ func (jc *JiPush) PushRigsList(ctx context.Context, platform, cid string, rigs [
 		if err != nil {
 			fmt.Println("json unmarshal error ", err)
 		}
+	}
+	if notice["image"] != "" {
+		extra["image"] = notice["image"]
 	}
 
 	var android *Android = NewAndroidNotification()
@@ -109,7 +111,7 @@ func (jc *JiPush) PushRigsList(ctx context.Context, platform, cid string, rigs [
 			extra["title"] = title
 		}
 
-		var threadId= notice["thread_id"]
+		var threadId = notice["thread_id"]
 		if threadId == "" {
 			payload.SetIosThreadId("default")
 		} else {
@@ -159,6 +161,7 @@ func (ji *JiPush) VipStats(ctx context.Context, msgIds string) ([]MessageResult,
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("bytes", string(sBytes))
 	var result []MessageResult
 	err = json.Unmarshal(sBytes, &result)
 	if err != nil {
@@ -185,7 +188,6 @@ func (ji *JiPush) GetCids(ctx context.Context, count int) ([]string, error) {
 	}
 	return result.CidList, nil
 }
-
 
 func (ji *JiPush) doGet(ctx context.Context, url string, params string) ([]byte, error) {
 	var result []byte
@@ -250,14 +252,126 @@ tryAgain:
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		return nil, errors.New("network error," + strconv.Itoa(res.StatusCode))
-	}
 	result, err = ioutil.ReadAll(res.Body)
 
 	if err != nil {
 		fmt.Println("jpush push post ioutil.ReadAll err:", err)
-		return nil, err
+		return result, err
 	}
+
+	if res.StatusCode != http.StatusOK {
+		fmt.Println("jpush push post fail:", err, string(result))
+		return result, errors.New("network error," + strconv.Itoa(res.StatusCode) + " result:" + string(result))
+	}
+
 	return result, nil
+}
+
+/**
+ *  多标签推送
+ */
+func (jc *JiPush) PushMultiTags(ctx context.Context, platform, cid string, tags, andTags, notTags []string, notice map[string]string) (*PushResult, error) {
+	if len(tags) == 0 && len(andTags) == 0 && len(notTags) == 0 {
+		return nil, errors.New("tag empty error")
+	}
+
+	if len(tags) > 20 || len(andTags) > 20 || len(notTags) > 20 {
+		return nil, errors.New("tag count more than 20 error")
+	}
+
+	var payload *Payload = NewPayload(platform)
+	if cid != "" {
+		payload.SetCid(cid)
+	} else {
+		var cids []string
+		cids, err := jc.GetCids(ctx, 1)
+		if err != nil {
+			fmt.Println("get cid error", err)
+		}
+
+		if len(cids) > 0 {
+			payload.SetCid(cids[0])
+		}
+	}
+
+	// 多标签都支持
+	if len(tags) > 0 {
+		payload.SetTag(tags)
+	}
+
+	if len(andTags) > 0 {
+		payload.SetTagAnd(andTags)
+	}
+
+	if len(notTags) > 0 {
+		payload.SetTagNot(notTags)
+	}
+
+	var ttl, _ = strconv.Atoi(notice["ttl"])
+	if ttl > 0 {
+		// 最大存活时间s
+		payload.SetTimeToLive(ttl)
+	}
+
+	var title = notice["title"]
+	var alert = notice["content"]
+	var custom = notice["custom"]
+	var extra = make(map[string]string, 0)
+	if custom != "" {
+		err := json.Unmarshal([]byte(custom), &extra)
+		if err != nil {
+			fmt.Println("json unmarshal error ", err)
+		}
+	}
+	if notice["image"] != "" {
+		extra["image"] = notice["image"]
+	}
+
+	var android *Android = NewAndroidNotification()
+	payload.Notification.Android = *android
+	payload.SetAndroidAlert(alert)
+	payload.SetAndroidTitle(title)
+	payload.SetAndroidExtras(extra)
+
+	var ios *Ios = NewIosNotification()
+	payload.Notification.Ios = *ios
+	payload.SetIosAlert(alert)
+
+	if platform == "ios" {
+		if notice["sound"] != "" {
+			payload.SetIosSound(notice["sound"])
+		} else {
+			payload.SetIosSound("default")
+		}
+
+		if title != "" {
+			extra["title"] = title
+		}
+
+		var threadId= notice["thread_id"]
+		if threadId == "" {
+			payload.SetIosThreadId("default")
+		} else {
+			payload.SetIosThreadId(threadId)
+		}
+		payload.SetIosExtras(extra)
+	}
+
+	var msgContent = notice["msgContent"]
+	var msgTitle = notice["msgTitle"]
+	var msgType = notice["msgType"]
+	var msgExtras = notice["msgExtras"]
+	if msgContent != "" {
+		var msgExtrasArray = make(map[string]string, 0)
+		if msgExtras != "" {
+			err := json.Unmarshal([]byte(msgExtras), &msgExtrasArray)
+			if err != nil {
+				fmt.Println("json unmarshal extras error ", err)
+			}
+		}
+		payload.SetMessage(msgContent, msgTitle, msgType, msgExtrasArray)
+	}
+
+	result, err := jc.Push(ctx, payload)
+	return result, err
 }
