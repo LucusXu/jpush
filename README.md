@@ -17,7 +17,13 @@ func main() {
 ### Sender APIs
 
 - [x] Push(ctx context.Context, payload *Payload)
+- [x] PushMultiTags(ctx context.Context, platform, cid string, tags, andTags, notTags []string, notice map[string]string)
 
 ### Stats APIs
 
 - [x] Stats(msgIds string)
+- [x] VipStats(ctx context.Context, msgIds string)
+
+### Other
+
+- [x] GetCids(ctx context.Context, count int)
