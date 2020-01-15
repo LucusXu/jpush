@@ -18,6 +18,7 @@ func main() {
 
 - [x] Push(ctx context.Context, payload *Payload)
 - [x] PushMultiTags(ctx context.Context, platform, cid string, tags, andTags, notTags []string, notice map[string]string)
+- [x] BatchPush(ctx context.Context, platform string, rigs []map[string]string, notice map[string]string)
 
 ### Stats APIs
 
