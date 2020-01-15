@@ -293,3 +293,41 @@ func (p *Payload) SetMessage(msgContent, title, contentType string, extras map[s
 	p.Message.Extras = extras
 	return p
 }
+
+//************************pushlist***************************************//
+// Playload对象
+func NewBatchPayload() *BatchPayload {
+	return &BatchPayload{
+		Pushlist : make(map[string]PushlistItem, 0),
+	}
+}
+
+type BatchPayload struct {
+	Pushlist			map[string]PushlistItem			`json:"pushlist,omitempty"`
+}
+
+type PushlistItem struct {
+	Platform     string	        `json:"platform,omitempty"`     // 推送平台，必选
+	Target		 string			`json:"target,omitempty"`		// regid
+	Notification Notification	`json:"notification,omitempty"` // 可选，通知内容体，被推送到客户端的内容，与message二者必选其一，或者并存
+	Message      Message	    `json:"message,omitempty"`      // 可选，消息内容体，通notification
+	SmsMessage   string	        `json:"sms_message,omitempty"`  // 可选，短信渠道补充送达内容体
+	Options      Options	    `json:"options,omitempty"`      // 可选，推送参数
+}
+
+func (p *PushlistItem) SetTimeToLive(ttl int) *PushlistItem {
+	if ttl < 0 {
+		return p
+	}
+	// 10 days
+	if ttl > MaxTimeToLive {
+		ttl = MaxTimeToLive
+	}
+	// default not need set
+	if ttl == DefaultTimeToLive {
+		return p
+	}
+	p.Options.TimeToLive = ttl
+	return p
+}
+

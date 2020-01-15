@@ -375,3 +375,181 @@ func (jc *JiPush) PushMultiTags(ctx context.Context, platform, cid string, tags,
 	result, err := jc.Push(ctx, payload)
 	return result, err
 }
+
+// 不同设备不同内容推送
+func (ji *JiPush) SinglePush(ctx context.Context, payload *BatchPayload) (*map[string]PushResult, error) {
+	pushUrl := ji.pushHost + BatchRegURL
+	resBytes, err := ji.doBatchPost(ctx, pushUrl, payload)
+
+	var result map[string]PushResult
+	errJson := json.Unmarshal(resBytes, &result)
+	if errJson != nil {
+		return nil, errJson
+	}
+	if err != nil {
+		return &result, err
+	}
+	return &result, nil
+}
+
+// 不同设备不同内容
+func (jc *JiPush) BatchPush(ctx context.Context, platform string, rigs []map[string]string, notice map[string]string) (map[string]string, *map[string]PushResult, error) {
+	if len(rigs) == 0 {
+		fmt.Println("rigs empty")
+		return nil, nil, nil
+	}
+
+	var cids []string
+	cids, err := jc.GetCids(ctx, len(rigs))
+	if err != nil {
+		fmt.Println("get cid error", err)
+		return nil, nil, err
+	}
+
+	var title = notice["title"]
+	var alert = notice["content"]
+	var custom = notice["custom"]
+	var extra = make(map[string]string, 0)
+	if custom != "" {
+		err := json.Unmarshal([]byte(custom), &extra)
+		if err != nil {
+			fmt.Println("json unmarshal error ", err)
+		}
+	}
+	if notice["image"] != "" {
+		extra["image"] = notice["image"]
+	}
+
+	var ttl, _= strconv.Atoi(notice["ttl"])
+	var payload *BatchPayload = NewBatchPayload()
+	var cidTokenPair = make(map[string]string, 0)
+	for idx, item := range rigs {
+		if len(cids) < idx {
+			break
+		}
+		var localTitle= item["title"]
+		if localTitle == "" {
+			localTitle = title
+		}
+		var localAlert= item["content"]
+		if localAlert == "" {
+			localAlert = alert
+		}
+		var token= item["token"]
+
+		var p = PushlistItem{}
+		p.Platform = platform
+		p.Target = token
+		p.SetTimeToLive(ttl)
+
+		var android *Android = NewAndroidNotification()
+		p.Notification.Android = *android
+		p.Notification.Android.Alert = localAlert
+		p.Notification.Android.Title = localTitle
+		p.Notification.Android.Extras = extra
+
+		var ios *Ios = NewIosNotification()
+		p.Notification.Ios = *ios
+		p.Notification.Ios.Alert = localAlert
+
+		if platform == "ios" {
+			if notice["sound"] != "" {
+				p.Notification.Ios.Sound = notice["sound"]
+			} else {
+				p.Notification.Ios.Sound = "default"
+			}
+
+			if localTitle != "" {
+				extra["title"] = localTitle
+			}
+
+			var threadId = notice["thread_id"]
+			if threadId == "" {
+				p.Notification.Ios.ThreadId = "default"
+			} else {
+				p.Notification.Ios.ThreadId = threadId
+			}
+			p.Notification.Ios.Extras = extra
+		}
+
+		var msgContent= notice["msgContent"]
+		var msgTitle= notice["msgTitle"]
+		var msgType= notice["msgType"]
+		var msgExtras= notice["msgExtras"]
+		if msgContent != "" {
+			var msgExtrasArray= make(map[string]string, 0)
+			if msgExtras != "" {
+				err := json.Unmarshal([]byte(msgExtras), &msgExtrasArray)
+				if err != nil {
+					fmt.Println("json unmarshal extras error ", err)
+				}
+			}
+			p.Message.MsgContent = msgContent
+			p.Message.Title = msgTitle
+			p.Message.ContentType = msgType
+			p.Message.Extras = msgExtrasArray
+		}
+
+		var cid = cids[idx]
+		payload.Pushlist[cid] = p
+		cidTokenPair[cid] = token
+	}
+
+	if len(payload.Pushlist) == 0 {
+		return nil, nil, nil
+	}
+	result, err := jc.SinglePush(ctx, payload)
+	return cidTokenPair, result, err
+}
+
+func (ji *JiPush) doBatchPost(ctx context.Context, url string, payload *BatchPayload) ([]byte, error) {
+	var result []byte
+	var req *http.Request
+	var res *http.Response
+	var err error
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(payload)
+
+	req, err = http.NewRequest("POST", url, buf)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(ji.appKey, ji.appSecret)
+	client := &http.Client{}
+	tryTime := 0
+tryAgain:
+	res, err = ctxhttp.Do(ctx, client, req)
+
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			return nil, err
+		default:
+		}
+		tryTime += 1
+		if tryTime < PostRetryTimes {
+			goto tryAgain
+		}
+		return nil, err
+	}
+	if res.Body == nil {
+		panic("jpush response is nil")
+	}
+	defer res.Body.Close()
+
+	result, err = ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		fmt.Println("jpush push post ioutil.ReadAll err:", err)
+		return result, err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		fmt.Println("jpush push post fail:", err, string(result))
+		return result, errors.New("network error," + strconv.Itoa(res.StatusCode) + " result:" + string(result))
+	}
+
+	return result, nil
+}
+

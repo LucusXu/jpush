@@ -76,3 +76,11 @@ type JpushStats struct {
 	Received	int	`json:"received"`			// 推送送达数
 	Target		int	`json:"target"`				// 推送目标数
 }
+
+// 推送返回结果
+type BatchPushResult struct {
+	MessageId	int	    `json:"message_id"`
+	Code		int     `json:"code"`
+	Message	    string  `json:"message"`
+	Error       Error   `json:"error"`
+}
