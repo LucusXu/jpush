@@ -420,33 +420,44 @@ func (jc *JiPush) BatchPush(ctx context.Context, platform string, rigs []map[str
 		extra["image"] = notice["image"]
 	}
 
-	var ttl, _= strconv.Atoi(notice["ttl"])
+	var ttl, _ = strconv.Atoi(notice["ttl"])
 	var payload *BatchPayload = NewBatchPayload()
 	var cidTokenPair = make(map[string]string, 0)
 	for idx, item := range rigs {
 		if len(cids) < idx {
 			break
 		}
-		var localTitle= item["title"]
+		var localTitle = item["title"]
 		if localTitle == "" {
 			localTitle = title
 		}
-		var localAlert= item["content"]
+		var localAlert = item["content"]
 		if localAlert == "" {
 			localAlert = alert
 		}
-		var token= item["token"]
+		var token = item["token"]
 
 		var p = PushlistItem{}
 		p.Platform = platform
 		p.Target = token
 		p.SetTimeToLive(ttl)
 
+        var lextra = make(map[string]string, 0)
+		if custom != "" {
+			err := json.Unmarshal([]byte(custom), &lextra)
+			if err != nil {
+				fmt.Println("json unmarshal error ", err)
+			}
+		}
+		if notice["image"] != "" {
+			lextra["image"] = notice["image"]
+		}
+
 		var android *Android = NewAndroidNotification()
 		p.Notification.Android = *android
 		p.Notification.Android.Alert = localAlert
 		p.Notification.Android.Title = localTitle
-		p.Notification.Android.Extras = extra
+		p.Notification.Android.Extras = lextra
 
 		var ios *Ios = NewIosNotification()
 		p.Notification.Ios = *ios
@@ -459,17 +470,16 @@ func (jc *JiPush) BatchPush(ctx context.Context, platform string, rigs []map[str
 				p.Notification.Ios.Sound = "default"
 			}
 
-			if localTitle != "" {
-				extra["title"] = localTitle
-			}
-
 			var threadId = notice["thread_id"]
 			if threadId == "" {
 				p.Notification.Ios.ThreadId = "default"
 			} else {
 				p.Notification.Ios.ThreadId = threadId
 			}
-			p.Notification.Ios.Extras = extra
+			p.Notification.Ios.Extras = lextra
+            if localTitle != "" {
+				p.Notification.Ios.Extras["title"] = localTitle
+			}
 		}
 
 		var msgContent= notice["msgContent"]
